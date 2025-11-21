@@ -3,210 +3,406 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Admin Dashboard — Büchsenstadel</title>
+<title>Admin Dashboard — Büchsenstadel (Kombinationen)</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
 <style>
-  :root{--bg:#f5f7fb;--card:#fff;--muted:#7b8594;--accent:#3b82f6}
-  body{font-family:Inter,system-ui; margin:0; background:var(--bg); color:#222}
-
-  /* Centered password screen */
-  #authScreen {
-    position:fixed; inset:0; background:var(--bg);
-    display:flex; justify-content:center; align-items:center;
-    flex-direction:column; gap:12px;
-    font-size:16px;
-  }
-  #authScreen input {
-    padding:10px 14px; border-radius:8px;
-    border:1px solid #d0d5dd; font-size:16px;
-  }
-  #authScreen button {
-    padding:10px 20px; cursor:pointer;
-    border:none; border-radius:8px;
-    background:var(--accent); color:white;
-    font-size:16px;
-  }
-
-  .wrap{max-width:1100px;margin:28px auto;padding:18px; display:none;}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  :root{--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--accent:#2563eb;--danger:#ef4444}
+  body{font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:var(--bg);color:#111}
+  .wrap{max-width:1200px;margin:24px auto;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:16px}
   h1{font-size:20px;margin:0}
-  .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
-  footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:right}
-
-  table { width:100%; border-collapse:collapse; margin-top:14px; }
-  th, td { padding:8px 12px; border-bottom:1px solid #e5e7eb; font-size:14px; }
-  th { background:#f0f2f6; text-align:left; }
-
+  .controls{display:flex;gap:12px;align-items:center}
+  .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+  .big{grid-column:span 2}
+  .stat{font-size:28px;font-weight:700}
+  .label{color:var(--muted);font-size:13px}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  canvas{width:100%!important;height:220px!important}
+  .muted{color:var(--muted);font-size:13px}
+  .section-title{font-weight:600;margin-bottom:8px}
+  .comb-table, .sheet-table {width:100%;border-collapse:collapse;font-size:14px}
+  .comb-table th, .comb-table td, .sheet-table th, .sheet-table td {padding:8px;border-bottom:1px solid #eef2f7;text-align:left}
+  .comb-scroll {max-height:360px;overflow:auto;padding-right:8px}
+  .sheet-wrap {max-height:420px;overflow:auto;border-radius:8px;border:1px solid #eef2f7;padding:6px;background:#fff}
+  .row-small{font-size:13px;color:var(--muted)}
+  .top-controls{display:flex;gap:10px;align-items:center}
+  .btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid #e6eefc}
+  .btn.warn{background:var(--danger)}
+  input[type="checkbox"]{transform:scale(1.05);margin-right:6px}
+  select{padding:6px;border-radius:8px;border:1px solid #e6eef7}
+  @media (max-width:960px){.grid{grid-template-columns:repeat(1,1fr)}.big{grid-column:span:1}.charts{grid-template-columns:1fr}}
+  .logo-note{font-size:12px;color:var(--muted);margin-top:6px}
 </style>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Büchsenstadel — Admin (Kombinationen)</h1>
+        <div class="muted">Datenquelle: Google Sheets (published CSV)</div>
+      </div>
 
-<!-- ============================
-     🔒 AUTHENTICATION SCREEN
-============================= -->
-<div id="authScreen">
-  <h2>Admin Login</h2>
-  <input id="pwInput" type="password" placeholder="Passwort eingeben…" />
-  <button onclick="checkPassword()">Login</button>
-  <div id="pwError" style="color:red;display:none;">Falsches Passwort</div>
-</div>
+      <div class="controls">
+        <div class="top-controls card" style="display:flex;gap:10px;align-items:center">
+          <label class="row-small"><input id="filter7" type="checkbox"> Nur letzte 7 Tage</label>
+          <label class="row-small">Auto-refresh:
+            <select id="refreshInterval">
+              <option value="0">Aus</option>
+              <option value="15">15s</option>
+              <option value="30" selected>30s</option>
+              <option value="60">60s</option>
+            </select>
+          </label>
 
-<!-- ============================
-     MAIN DASHBOARD
-============================= -->
-<div class="wrap" id="dashboard">
+          <button id="refreshBtn" class="btn ghost" title="Manuell neu laden">Neu laden</button>
+          <button id="downloadBtn" class="btn" title="CSV herunterladen">CSV herunterladen</button>
+        </div>
+      </div>
+    </header>
 
-  <header>
-    <h1>Büchsenstadel — Admin Dashboard</h1>
-    <div id="lastUpdate" style="color:var(--muted);font-size:13px">loading…</div>
-  </header>
+    <div class="grid">
+      <div class="card">
+        <div class="label">Gesamt</div>
+        <div id="total" class="stat">—</div>
+        <div class="row-small" id="lastUpdate">—</div>
+      </div>
 
-  <!-- ======= COMBINATION SUMMARY ======= -->
-  <div class="card">
-    <h3>Kombinationen (Alter × Geschlecht × Migration) — letzte 7 Tage</h3>
-    <table id="comboTable">
-      <thead>
-        <tr>
-          <th>Alter</th>
-          <th>Geschlecht</th>
-          <th>Migrationshintergrund</th>
-          <th>Anzahl</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+      <div class="card">
+        <div class="section-title">Filter & Status</div>
+        <div class="muted" id="fetchStatus">Warte auf Laden…</div>
+        <div style="margin-top:10px" class="row-small">Hinweis: Die Kombinationstabelle listet nur Kombinationen, die mindestens 1 Eintrag haben.</div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Schnellstatistiken</div>
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <div>
+            <div class="label">Männlich</div>
+            <div id="maleCount" class="stat">—</div>
+          </div>
+          <div>
+            <div class="label">Weiblich</div>
+            <div id="femaleCount" class="stat">—</div>
+          </div>
+          <div>
+            <div class="label">Divers/Unbekannt</div>
+            <div id="otherCount" class="stat">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card big">
+        <div class="section-title">Kombinationen (Alter × Geschlecht × Migrationshintergrund)</div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <div class="muted">Sortieren nach:</div>
+          <select id="sortComb">
+            <option value="count_desc">Anzahl (absteigend)</option>
+            <option value="count_asc">Anzahl (aufsteigend)</option>
+            <option value="label_asc">Label A→Z</option>
+          </select>
+        </div>
+
+        <div class="comb-scroll" style="margin-top:12px">
+          <table class="comb-table" id="combTable">
+            <thead>
+              <tr><th>Alter</th><th>Geschlecht</th><th>Migrationshintergrund</th><th>Anzahl</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Rohdaten (Sheet-Replik)</div>
+        <div class="sheet-wrap" id="sheetWrap" style="margin-top:8px">
+          <table class="sheet-table" id="sheetTable">
+            <thead><tr><th>Timestamp</th><th>Alter</th><th>Migrationshintergrund</th><th>Geschlecht</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Letzte Einträge</div>
+        <div id="recentList" style="margin-top:8px;color:#111"></div>
+      </div>
+    </div>
+
+    <footer style="text-align:right;margin-top:10px;color:var(--muted)">Admin panel — live view · Letzte Aktualisierung: <span id="updatedAt">—</span></footer>
+
+    <div class="logo-note card" style="margin-top:12px">
+      <div style="font-weight:600;margin-bottom:6px">Dashboard reference image</div>
+      <!-- local uploaded screenshot for your reference; hosted conversion will replace this path -->
+      <img src="/mnt/data/2c45411f-6ab8-488c-af65-4ce538336fd5.png" alt="sheet header screenshot" style="max-width:220px;border-radius:8px;border:1px solid #eef2f7">
+      <div class="logo-note">(local reference image)</div>
+    </div>
   </div>
-
-  <!-- ======= RAW ROWS TABLE ======= -->
-  <div class="card" style="margin-top:20px;">
-    <h3>Alle Einträge (wie Google Sheet) — letzte 7 Tage</h3>
-    <table id="rawTable">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Alter</th>
-          <th>Migrationshintergrund</th>
-          <th>Geschlecht</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <footer>Datenquelle: Google Sheets</footer>
-</div>
 
 <script>
-/* ============================
-   🔒 Password check
-============================= */
-const PASSWORD = "89073";
+/* ====== CONFIG: replace this with your published CSV URL ======
+   Example:
+   https://docs.google.com/spreadsheets/d/e/<ID>/pub?gid=726839817&single=true&output=csv
+*/
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv';
 
-function checkPassword() {
-  const inp = document.getElementById("pwInput").value.trim();
-  if (inp === PASSWORD) {
-    document.getElementById("authScreen").style.display="none";
-    document.getElementById("dashboard").style.display="block";
-  } else {
-    document.getElementById("pwError").style.display="block";
+/* ====== CSV parser (robust for quoted fields) ====== */
+function parseCSV(text){
+  const rows = [];
+  let i = 0, cur = '', row = [], inQuotes = false;
+  while(i < text.length){
+    const ch = text[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ cur += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      } else { cur += ch; i++; continue; }
+    }
+    if(ch === '"'){ inQuotes = true; i++; continue; }
+    if(ch === ','){ row.push(cur); cur=''; i++; continue; }
+    if(ch === '\r'){ i++; continue; }
+    if(ch === '\n'){ row.push(cur); rows.push(row); row=[]; cur=''; i++; continue; }
+    cur += ch; i++;
   }
+  if(cur !== '' || inQuotes || row.length) row.push(cur);
+  if(row.length) rows.push(row);
+  return rows;
 }
 
-/* ============================
-   📊 CSV CONFIG
-============================= */
-
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv";  /* keep your actual link */
-
-/* Simple CSV parser */
-function parseCSV(t){
-  return t.split(/\r?\n/).map(r => r.split(","));
+/* ====== fuzzy header detection ====== */
+function detectIndexes(headers){
+  const low = headers.map(h => (h||'').toString().toLowerCase().trim());
+  function findAny(cands){
+    for(const c of cands){
+      const idx = low.findIndex(h => h === c.toLowerCase());
+      if(idx !== -1) return idx;
+    }
+    for(const c of cands){
+      const idx = low.findIndex(h => h.includes(c.toLowerCase()));
+      if(idx !== -1) return idx;
+    }
+    return -1;
+  }
+  return {
+    idxTimestamp: findAny(['timestamp','zeit','date','time','zeitstempel']),
+    idxAge: findAny(['alter','age']),
+    idxMig: findAny(['migrationshintergrund','migration','migrant','migration background','migrations'] ),
+    idxGender: findAny(['geschlecht','gender','sex'])
+  };
 }
 
-/* ============================
-   MAIN FETCH + LOGIC
-============================= */
-async function loadData(){
+/* ====== normalization helpers ====== */
+function normGender(g){
+  if(!g) return 'Unbekannt';
+  const s = g.toString().trim().toLowerCase();
+  if(s.startsWith('männ') || s === 'm' || s.startsWith('male')) return 'Männlich';
+  if(s.startsWith('w') || s === 'f' || s.startsWith('weib')) return 'Weiblich';
+  if(s.startsWith('d') || s.includes('div')) return 'Divers';
+  return g;
+}
+function normAge(a){
+  if(!a) return 'Unbekannt';
+  const s = a.toString().trim();
+  if(s.includes('10')) return '10–14';
+  if(/\b(14|15|16|17|18)\b/.test(s)) return '14–18';
+  if(/\b(18|19|20|21|22|23|24|25|26|27)\b/.test(s)) return '18–27';
+  if(s.includes('27') || s.includes('+')) return '27+';
+  return s;
+}
+function normMig(m){
+  if(!m) return 'Unbekannt';
+  const s = m.toString().trim().toLowerCase();
+  if(s.startsWith('j') || s.includes('yes')) return 'Ja';
+  if(s.startsWith('n') || s.includes('no')) return 'Nein';
+  return m;
+}
+
+/* ====== UI refs ====== */
+const totalEl = document.getElementById('total');
+const lastUpdateEl = document.getElementById('lastUpdate');
+const fetchStatusEl = document.getElementById('fetchStatus');
+const updatedAtEl = document.getElementById('updatedAt');
+const sheetTbody = document.querySelector('#sheetTable tbody');
+const combTbody = document.querySelector('#combTable tbody');
+const recentList = document.getElementById('recentList');
+const maleCountEl = document.getElementById('maleCount');
+const femaleCountEl = document.getElementById('femaleCount');
+const otherCountEl = document.getElementById('otherCount');
+const filter7Checkbox = document.getElementById('filter7');
+const refreshSelect = document.getElementById('refreshInterval');
+const refreshBtn = document.getElementById('refreshBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const sortSelect = document.getElementById('sortComb');
+
+let allRows = [];
+let headerRow = [];
+let refreshTimer = null;
+
+/* ====== fetch & process ====== */
+async function fetchAndRender(){
   try{
-    const res = await fetch(CSV_URL);
-    const text = await res.text();
-    const rows = parseCSV(text);
+    fetchStatusEl.innerText = 'Lade…';
+    lastUpdateEl.innerText = 'Lade…';
+    const t0 = Date.now();
+    const res = await fetch(CSV_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('Fetch failed: '+res.status);
+    const txt = await res.text();
+    const rows = parseCSV(txt);
+    if(rows.length < 1) throw new Error('Keine Daten in CSV');
+    headerRow = rows[0];
+    allRows = rows.slice(1).filter(r => r.some(c => c && c.toString().trim() !== ''));
 
-    const header = rows[0];
-    const body = rows.slice(1).filter(r => r.join("").trim() !== "");
-
-    // Collect indexes
-    const idxTS = header.indexOf("Timestamp");
-    const idxAge = header.indexOf("Alter");
-    const idxMig = header.indexOf("Migrationshintergrund");
-    const idxGen = header.indexOf("Geschlecht");
-
-    if ([idxTS,idxAge,idxMig,idxGen].includes(-1)) {
-      alert("Header problem!");
+    const idx = detectIndexes(headerRow);
+    if(idx.idxAge === -1 || idx.idxGender === -1 || idx.idxMig === -1 || idx.idxTimestamp === -1){
+      fetchStatusEl.innerText = 'Fehler: Header nicht gefunden. Erwartet: Timestamp, Alter, Migrationshintergrund, Geschlecht (fuzzy)';
+      console.error('Detected headers:', headerRow);
       return;
     }
 
-    const now = Date.now();
-    const last7 = 7 * 24 * 60 * 60 * 1000;
+    const filtered = apply7DayFilter(allRows, idx);
+    renderSheetTable(filtered, idx);
+    renderCombos(filtered, idx);
 
-    const filtered = body.filter(r=>{
-      const ts = new Date(r[idxTS]).getTime();
-      return now - ts < last7;
-    });
-
-    /* ========= Fill raw table ========= */
-    const rawTbody = document.getElementById("rawTable").querySelector("tbody");
-    rawTbody.innerHTML = "";
-    filtered.forEach(r=>{
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${r[idxTS]}</td>
-        <td>${r[idxAge]}</td>
-        <td>${r[idxMig]}</td>
-        <td>${r[idxGen]}</td>
-      `;
-      rawTbody.appendChild(tr);
-    });
-
-    /* ========= Build combination summary ========= */
-    const combos = {}; // { "age | gender | mig": count }
-
-    filtered.forEach(r=>{
-      const key = `${r[idxAge]}|${r[idxGen]}|${r[idxMig]}`;
-      combos[key] = (combos[key]||0) + 1;
-    });
-
-    const comboTbody = document.getElementById("comboTable").querySelector("tbody");
-    comboTbody.innerHTML = "";
-
-    Object.entries(combos).forEach(([k,v])=>{
-      const [a,g,m] = k.split("|");
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${a}</td>
-        <td>${g}</td>
-        <td>${m}</td>
-        <td>${v}</td>
-      `;
-      comboTbody.appendChild(tr);
-    });
-
-    document.getElementById("lastUpdate").textContent =
-      "Letzte Aktualisierung: " + new Date().toLocaleString();
-
-  } catch(e){
-    alert("Fehler beim Laden der Daten");
+    const took = ((Date.now()-t0)/1000).toFixed(2);
+    fetchStatusEl.innerText = 'OK ('+took+'s)';
+    lastUpdateEl.innerText = 'Letztes Laden: ' + new Date().toLocaleString();
+    updatedAtEl.innerText = new Date().toLocaleString();
+  }catch(e){
     console.error(e);
+    fetchStatusEl.innerText = 'Fehler: ' + (e.message || e);
+    lastUpdateEl.innerText = 'Fehler beim Laden';
   }
 }
 
-loadData();
+/* ====== filter helper ====== */
+function apply7DayFilter(rows, idx){
+  if(!filter7Checkbox.checked) return rows;
+  const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  return rows.filter(r => {
+    const ts = r[idx.idxTimestamp];
+    if(!ts) return false;
+    const d = new Date(ts);
+    if(isNaN(d)) return false;
+    return d.getTime() >= cutoff;
+  });
+}
+
+/* ====== Render raw sheet table ====== */
+function renderSheetTable(rows, idx){
+  sheetTbody.innerHTML = '';
+  const show = rows.slice(-500);
+  for(let i=show.length-1;i>=0;i--){
+    const r = show[i];
+    const tr = document.createElement('tr');
+    const ts = r[idx.idxTimestamp] || '';
+    const age = r[idx.idxAge] || '';
+    const mig = r[idx.idxMig] || '';
+    const gen = r[idx.idxGender] || '';
+    tr.innerHTML = `<td class="row-small">${escapeHtml(ts)}</td>\n                    <td>${escapeHtml(age)}</td>\n                    <td>${escapeHtml(mig)}</td>\n                    <td>${escapeHtml(gen)}</td>`;
+    sheetTbody.appendChild(tr);
+  }
+}
+
+/* ====== Render combos (only existing combos) ====== */
+function renderCombos(rows, idx){
+  const counts = {};
+  const genderTotals = {Männlich:0,Weiblich:0,Divers:0,Unbekannt:0};
+  const recent = [];
+
+  rows.forEach(r => {
+    const rawAge = r[idx.idxAge] || '';
+    const rawGender = r[idx.idxGender] || '';
+    const rawMig = r[idx.idxMig] || '';
+    const ts = r[idx.idxTimestamp] || '';
+
+    const age = normAge(rawAge);
+    const gen = normGender(rawGender);
+    const mig = normMig(rawMig);
+
+    if(gen === 'Männlich') genderTotals.Männlich++;
+    else if(gen === 'Weiblich') genderTotals.Weiblich++;
+    else genderTotals.Divers++;
+
+    const key = age + '|' + gen + '|' + mig;
+    counts[key] = (counts[key] || 0) + 1;
+    recent.push({ts, age, gen, mig});
+  });
+
+  // build rows only for keys that exist
+  const rowsOut = Object.keys(counts).map(k => {
+    const [age, gen, mig] = k.split('|');
+    return {age, gen, mig, count: counts[k]};
+  });
+
+  const sortMode = sortSelect.value;
+  if(sortMode === 'count_desc') rowsOut.sort((a,b)=>b.count-a.count);
+  else if(sortMode === 'count_asc') rowsOut.sort((a,b)=>a.count-b.count);
+  else rowsOut.sort((a,b)=> (a.age + a.gen + a.mig).localeCompare(b.age + b.gen + b.mig));
+
+  combTbody.innerHTML = '';
+  rowsOut.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(r.age)}</td>\n                    <td>${escapeHtml(r.gen)}</td>\n                    <td>${escapeHtml(r.mig)}</td>\n                    <td style="font-weight:600">${r.count}</td>`;
+    combTbody.appendChild(tr);
+  });
+
+  // recent list
+  recentList.innerHTML = '';
+  recent.slice(-8).reverse().forEach(e=>{
+    const d = e.ts ? new Date(e.ts).toLocaleString() : '';
+    const el = document.createElement('div');
+    el.className = 'row-small';
+    el.style.padding = '6px 0';
+    el.innerText = `${d} — ${e.age} / ${e.gen} / ${e.mig}`;
+    recentList.appendChild(el);
+  });
+
+  totalEl.innerText = rows.length;
+  maleCountEl.innerText = genderTotals.Männlich;
+  femaleCountEl.innerText = genderTotals.Weiblich;
+  otherCountEl.innerText = genderTotals.Divers;
+}
+
+/* ====== download current filtered CSV ====== */
+function downloadCSV(){
+  const header = ['Timestamp','Alter','Migrationshintergrund','Geschlecht'];
+  const idx = detectIndexes(headerRow);
+  const filtered = apply7DayFilter(allRows, idx);
+  const lines = [header.join(',')];
+  filtered.forEach(r=>{
+    const cells = [quoteCSV(r[idx.idxTimestamp]||''), quoteCSV(r[idx.idxAge]||''), quoteCSV(r[idx.idxMig]||''), quoteCSV(r[idx.idxGender]||'')];
+    lines.push(cells.join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'filtered_submissions.csv'; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 5000);
+}
+
+/* ====== helpers ====== */
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function quoteCSV(s){ const t = (s||'').toString(); if(t.includes(',')||t.includes('"')||t.includes('\n')) return `"${t.replace(/"/g,'""')}"`; return t; }
+
+/* ====== events ====== */
+refreshBtn.addEventListener('click', ()=> fetchAndRender());
+downloadBtn.addEventListener('click', downloadCSV);
+filter7Checkbox.addEventListener('change', ()=> fetchAndRender());
+sortSelect.addEventListener('change', ()=> renderCombos(apply7DayFilter(allRows, detectIndexes(headerRow)), detectIndexes(headerRow)));
+
+refreshSelect.addEventListener('change', ()=> {
+  if(refreshTimer) clearInterval(refreshTimer);
+  const v = Number(refreshSelect.value);
+  if(v > 0) refreshTimer = setInterval(fetchAndRender, v*1000);
+});
+
+// initial fetch + auto-refresh
+fetchAndRender();
+if(Number(refreshSelect.value) > 0) refreshTimer = setInterval(fetchAndRender, Number(refreshSelect.value)*1000);
+
 </script>
 </body>
 </html>
