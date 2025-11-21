@@ -4,16 +4,32 @@
 <meta charset="UTF-8">
 <title>Statistik Zusammenfassung</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  table { border-collapse: collapse; margin-bottom: 30px; width: 100%; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-  th { background-color: #f0f0f0; }
-  h2 { margin-top: 40px; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f9f9f9; color: #333; }
+  h1, h2 { color: #2c3e50; }
+  table { border-collapse: collapse; margin-bottom: 30px; width: 100%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+  th { background-color: #3498db; color: #fff; position: sticky; top: 0; }
+  tr:nth-child(even) { background-color: #f2f2f2; }
+  tr:hover { background-color: #eaf2f8; }
+  label { margin-right: 10px; font-weight: bold; }
+  select { padding: 5px; margin-right: 15px; }
+  .filters { margin-bottom: 20px; }
 </style>
 </head>
 <body>
 
 <h1>Statistik Zusammenfassung</h1>
+
+<div class="filters">
+  <label for="day">Tag:</label>
+  <select id="day"><option value="">Alle</option></select>
+
+  <label for="month">Monat:</label>
+  <select id="month"><option value="">Alle</option></select>
+
+  <label for="year">Jahr:</label>
+  <select id="year"><option value="">Alle</option></select>
+</div>
 
 <h2>Rohdaten</h2>
 <table id="rawTable">
@@ -25,9 +41,7 @@
       <th>Geschlecht</th>
     </tr>
   </thead>
-  <tbody>
-    <!-- Rohdaten rows will appear here -->
-  </tbody>
+  <tbody></tbody>
 </table>
 
 <h2>Zusammenfassung</h2>
@@ -40,21 +54,19 @@
       <th>Anzahl</th>
     </tr>
   </thead>
-  <tbody>
-    <!-- Zusammenfassung rows will appear here -->
-  </tbody>
+  <tbody></tbody>
 </table>
 
 <script>
-// CSV URL
 const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv";
 
-// Allowed categories
 const ageGroups = ["10-14","14-18","18-27","27+"];
 const migrationStatus = ["Ja","Nein"];
 const genders = ["Männlich","Weiblich","Divers"];
 
-// Helper: parse CSV
+let rawData = [];
+
+// Parse CSV
 function parseCSV(csv) {
     const lines = csv.trim().split("\n");
     const headers = lines.shift().split(",");
@@ -66,7 +78,7 @@ function parseCSV(csv) {
     });
 }
 
-// Helper: create table rows
+// Create table rows
 function createTableRows(data) {
     return data.map(row => `<tr>
         <td>${row.Timestamp}</td>
@@ -76,7 +88,7 @@ function createTableRows(data) {
     </tr>`).join("");
 }
 
-// Helper: create summary table
+// Create summary table
 function createSummaryTable(data) {
     const summary = {};
 
@@ -89,7 +101,7 @@ function createSummaryTable(data) {
         summary[key] = (summary[key] || 0) + 1;
     });
 
-    const rows = Object.entries(summary).map(([key, count]) => {
+    return Object.entries(summary).map(([key, count]) => {
         const [age, mig, gender] = key.split("|");
         return `<tr>
             <td>${age}</td>
@@ -97,19 +109,64 @@ function createSummaryTable(data) {
             <td>${gender}</td>
             <td>${count}</td>
         </tr>`;
-    });
-
-    return rows.join("");
+    }).join("");
 }
 
-// Fetch CSV and render tables
+// Populate date filters
+function populateDateFilters(data) {
+    const days = new Set();
+    const months = new Set();
+    const years = new Set();
+
+    data.forEach(row => {
+        const date = new Date(row.Timestamp);
+        if (!isNaN(date)) {
+            days.add(date.getDate());
+            months.add(date.getMonth() + 1);
+            years.add(date.getFullYear());
+        }
+    });
+
+    const daySelect = document.getElementById('day');
+    Array.from(days).sort((a,b)=>a-b).forEach(d => daySelect.innerHTML += `<option value="${d}">${d}</option>`);
+
+    const monthSelect = document.getElementById('month');
+    Array.from(months).sort((a,b)=>a-b).forEach(m => monthSelect.innerHTML += `<option value="${m}">${m}</option>`);
+
+    const yearSelect = document.getElementById('year');
+    Array.from(years).sort((a,b)=>a-b).forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
+}
+
+// Filter data by date
+function filterData() {
+    const day = document.getElementById('day').value;
+    const month = document.getElementById('month').value;
+    const year = document.getElementById('year').value;
+
+    const filtered = rawData.filter(row => {
+        const date = new Date(row.Timestamp);
+        if (isNaN(date)) return false;
+        return (!day || date.getDate() == day) &&
+               (!month || (date.getMonth() + 1) == month) &&
+               (!year || date.getFullYear() == year);
+    });
+
+    document.querySelector("#rawTable tbody").innerHTML = createTableRows(filtered);
+    document.querySelector("#summaryTable tbody").innerHTML = createSummaryTable(filtered);
+}
+
+// Event listeners
+document.getElementById('day').addEventListener('change', filterData);
+document.getElementById('month').addEventListener('change', filterData);
+document.getElementById('year').addEventListener('change', filterData);
+
+// Fetch CSV
 fetch(csvUrl)
 .then(response => response.text())
 .then(csvText => {
-    const data = parseCSV(csvText);
-
-    document.querySelector("#rawTable tbody").innerHTML = createTableRows(data);
-    document.querySelector("#summaryTable tbody").innerHTML = createSummaryTable(data);
+    rawData = parseCSV(csvText);
+    populateDateFilters(rawData);
+    filterData(); // initial display
 })
 .catch(err => {
     console.error("CSV konnte nicht geladen werden:", err);
