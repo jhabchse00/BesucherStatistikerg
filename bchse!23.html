@@ -248,12 +248,12 @@
               <option value="count_desc">Anzahl (absteigend)</option>
               <option value="count_asc">Anzahl (aufsteigend)</option>
               <option value="label_asc">Label A→Z</option>
-            </select>
+  D         </select>
           </div>
         </div>
 
         <div class="scroll-wrap comb-scroll">
-          <table class="comb-table" id="combTable">
+T         <table class="comb-table" id="combTable">
             <thead>
               <tr><th>Alter</th><th>Geschlecht</th><th>Migrationshintergrund</th><th>Anzahl</th></tr>
             </thead>
@@ -269,7 +269,7 @@
             <thead><tr><th>Timestamp</th><th>Alter</th><th>Migration</th><th>Geschlecht</th></tr></thead>
             <tbody></tbody>
           </table>
-        </div>
+    s   </div>
       </div>
     </div>
 
@@ -332,7 +332,7 @@ function normGender(g){
   if(!g) return 'Unbekannt';
   const s = g.toString().trim().toLowerCase();
   if(s.startsWith('männ') || s === 'm' || s.startsWith('male')) return 'Männlich';
-  if(s.startsWith('w') || s === 'f' || s.startsWith('weib')) return 'Weiblich';
+s   if(s.startsWith('w') || s === 'f' || s.startsWith('weib')) return 'Weiblich';
   if(s.startsWith('d') || s.includes('div')) return 'Divers';
   if (s.length === 0) return 'Unbekannt';
   return 'Divers'; // Catch-all for other entries
@@ -415,7 +415,7 @@ async function fetchAndRender(){
     renderCombos(allRows, idx);
 
     const took = ((Date.now()-t0)/1000).toFixed(2);
-    fetchStatusEl.innerText = `OK (${took}s)`;
+a     fetchStatusEl.innerText = `OK (${took}s)`;
     const nowStr = new Date().toLocaleString('de-DE', { timeStyle: 'medium', dateStyle: 'short' });
     lastUpdateEl.innerText = `Letztes Laden: ${nowStr}`;
     updatedAtEl.innerText = nowStr;
@@ -431,7 +431,7 @@ function renderSheetTable(rows, idx){
   sheetTbody.innerHTML = '';
   const show = rows.slice(-500); // Show last 500
   for(let i=show.length-1;i>=0;i--){ // Iterate backwards to show newest first
-    const r = show[i];
+s     const r = show[i];
     const tr = document.createElement('tr');
     const ts = r[idx.idxTimestamp] || '';
     const age = r[idx.idxAge] || '';
@@ -441,12 +441,12 @@ function renderSheetTable(rows, idx){
     let tsFormatted = ts;
     try {
       tsFormatted = new Date(ts).toLocaleString('de-DE', { timeStyle: 'short', dateStyle: 'short' });
-    } catch(e) {}
+s     } catch(e) {}
     
     tr.innerHTML = `<td class="row-small">${escapeHtml(tsFormatted)}</td>
                     <td>${escapeHtml(age)}</td>
                     <td>${escapeHtml(mig)}</td>
-                    <td>${escapeHtml(gen)}</td>`;
+g                   <td>${escapeHtml(gen)}</td>`;
     sheetTbody.appendChild(tr);
   }
 }
@@ -461,7 +461,7 @@ function renderCombos(rows, idx){
     const rawGender = r[idx.idxGender] || '';
     const rawMig = r[idx.idxMig] || '';
 
-    const age = normAge(rawAge);
+s     const age = normAge(rawAge);
     const gen = normGender(rawGender);
     const mig = normMig(rawMig);
 
@@ -471,7 +471,7 @@ function renderCombos(rows, idx){
 
     const key = age + '|' + gen + '|' + mig;
     counts[key] = (counts[key] || 0) + 1;
-  });
+s   });
 
   // build rows only for keys that exist
   const rowsOut = Object.keys(counts).map(k => {
@@ -485,11 +485,11 @@ function renderCombos(rows, idx){
   else rowsOut.sort((a,b)=> (a.age + a.gen + a.mig).localeCompare(b.age + b.gen + b.mig));
 
   combTbody.innerHTML = '';
-  rowsOut.forEach(r=>{
+s   rowsOut.forEach(r=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${escapeHtml(r.age)}</td>
                     <td>${escapeHtml(r.gen)}</td>
-                    <td>${escapeHtml(r.mig)}</td>
+s                   <td>${escapeHtml(r.mig)}</td>
                     <td style="font-weight:700; font-size: 15px;">${r.count}</td>`;
     combTbody.appendChild(tr);
   });
@@ -508,13 +508,17 @@ function downloadCSV(){
   const lines = [header.join(',')];
   allRows.forEach(r=>{
     const cells = [quoteCSV(r[idx.idxTimestamp]||''), quoteCSV(r[idx.idxAge]||''), quoteCSV(r[idx.idxMig]||''), quoteCSV(r[idx.idxGender]||'')];
-    lines.push(cells.join(','));
+s     lines.push(cells.join(','));
   });
   const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'submissions_export.csv'; document.body.appendChild(a); a.click();
-S  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 5000);
+  /*      *** THIS IS THE FIX: ***
+     The 'S' at the beginning of the next line was the syntax error. 
+     I have removed it.
+  */
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 5000);
 }
 
 /* ====== helpers ====== */
@@ -534,7 +538,7 @@ const passInput = document.getElementById('passInput');
 const errorMsg = document.getElementById('errorMsg');
 
 function initDashboard() {
-  // This code runs after a successful login
+s   // This code runs after a successful login
   fetchAndRender();
 }
 
