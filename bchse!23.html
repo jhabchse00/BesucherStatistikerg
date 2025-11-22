@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Admin — Büchsenstadel (Raw + Kombinationen)</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
 <style>
   :root{--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--accent:#2563eb}
   body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:0;background:var(--bg);color:#111}
@@ -16,7 +17,7 @@
   .grid{display:grid;grid-template-columns:1fr 420px;gap:12px}
   .full{grid-column:1 / -1}
   label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-  input[type=date], select, input[type=text]{padding:8px;border-radius:8px;border:1px solid #e6edf8;font-size:14px}
+  input[type=text]{padding:8px;border-radius:8px;border:1px solid #e6edf8;font-size:14px}
   button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
   button.ghost{background:#fff;color:var(--accent);border:1px solid #dfeeff}
   .small{font-size:13px;color:var(--muted)}
@@ -28,32 +29,33 @@
   @media (max-width:900px){.grid{grid-template-columns:1fr}.table-wrap{max-height:320px}}
 </style>
 </head>
+
 <body>
 <div class="wrap">
+
   <header>
     <div>
       <h1>Büchsenstadel — Admin</h1>
       <div class="small">Rohdaten + Kombinationen · Live aus Google Sheets</div>
     </div>
     <div class="controls">
-      <button id="refreshBtn" title="Neu laden">Neu laden</button>
-      <button id="downloadBtn" class="ghost" title="Export aktuell gefiltert">Export CSV</button>
+      <button id="refreshBtn">Neu laden</button>
+      <button id="downloadBtn" class="ghost">Export CSV</button>
     </div>
   </header>
 
+  <!-- FILTER SECTION -->
   <div class="card full" style="margin-bottom:12px">
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
-      
-      
       <div>
         <label>Freitext Suche</label>
         <input type="text" id="textFilter" placeholder="Suche Timestamp / Alter / Geschlecht…">
       </div>
-      
     </div>
   </div>
 
   <div class="grid">
+    <!-- COMBINATIONS -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
@@ -65,57 +67,47 @@
 
       <div class="table-wrap" style="margin-top:12px">
         <table class="comb-list" id="combTable">
-          <thead><tr><th>Alter</th><th>Geschlecht</th><th>Migration</th><th style="width:90px">Anzahl</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Alter</th>
+              <th>Geschlecht</th>
+              <th>Migration</th>
+              <th style="width:90px">Anzahl</th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
 
+    <!-- RAW DATA -->
     <div class="card">
       <div class="small">Rohdaten</div>
       <strong style="font-size:16px">Einträge</strong>
+
       <div class="table-wrap">
-        <table id="rawTable"><thead><tr><th>Timestamp</th><th>Alter</th><th>Migration</th><th>Geschlecht</th></tr></thead><tbody></tbody></table>
+        <table id="rawTable">
+          <thead>
+            <tr><th>Timestamp</th><th>Alter</th><th>Migration</th><th>Geschlecht</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <footer style="margin-top:12px;text-align:right;color:var(--muted);font-size:13px">Datenquelle: Google Sheets</footer>
+  <footer style="margin-top:12px;text-align:right;color:var(--muted);font-size:13px">
+    Datenquelle: Google Sheets
+  </footer>
+
 </div>
 
 <script>
-// Local reference image path (from user's uploaded file)
-const LOCAL_UPLOAD = '/mnt/data/54753e4a-e075-4cd5-9ce3-21ed64c870c2.png';
+// CSV URL
+const CSV_URL =
+'https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv';
 
-// CSV URL provided by you
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv';
-
-// Robust CSV parser (handles quoted fields)
-function parseCSV(text){
-  const rows = [];
-  let cur=''; let row=[]; let inQ=false; for(let i=0;i<text.length;i++){
-    const ch = text[i];
-    const next = text[i+1]||'';
-    if(inQ){ if(ch==='"' && next==='"'){ cur+='"'; i++; continue;} if(ch==='"'){ inQ=false; continue;} cur+=ch; continue; }
-    if(ch==='"'){ inQ=true; continue; }
-    if(ch===','){ row.push(cur); cur=''; continue; }
-    if(ch==='\n' || (ch==='\r' && next==='\n')){ row.push(cur); rows.push(row); row=[]; cur=''; if(ch==='\r') i++; continue; }
-    cur+=ch;
-  }
-  if(cur!==''||row.length) row.push(cur);
-  if(row.length) rows.push(row);
-  return rows;
-}
-
-// Utilities
-function findIdx(headers, candidates){
-  const low = headers.map(h => (h||'').toString().toLowerCase().trim());
-  for(const c of candidates){ const i = low.indexOf(c); if(i!==-1) return i; }
-  for(const c of candidates){ for(let j=0;j<low.length;j++) if(low[j].includes(c)) return j; }
-  return -1;
-}
-
-// DOM refs
+// DOM
 const combTbody = document.querySelector('#combTable tbody');
 const rawTbody = document.querySelector('#rawTable tbody');
 const textFilter = document.getElementById('textFilter');
@@ -123,110 +115,197 @@ const refreshBtn = document.getElementById('refreshBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const summaryCountEl = document.getElementById('summaryCount');
 
+// STATE
 let headerRow = [];
 let allRows = [];
+let txt = "";
 
-function toDateOnly(d){ const dt = new Date(d); if(isNaN(dt)) return null; return new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()); }
+// CSV PARSER
+function parseCSV(text){
+  const rows=[]; let cur=''; let row=[]; let q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1]||'';
+    if(q){
+      if(c==='"'&&n==='"'){cur+='"';i++;continue;}
+      if(c==='"'){q=false;continue;}
+      cur+=c; continue;
+    }
+    if(c==='"'){q=true;continue;}
+    if(c===','){row.push(cur);cur='';continue;}
+    if(c==='\n'||(c==='\r'&&n==='\n')){
+      row.push(cur);rows.push(row);row=[];cur='';
+      if(c==='\r') i++;
+      continue;
+    }
+    cur+=c;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
 
-function applyFilters(rows, idx){
-  // date filter
-  return rows.filter(r => {
-    const tsRaw = r[idx.ts]||'';
-    const age = (r[idx.age]||'').toString();
-    const mig = (r[idx.mig]||'').toString();
-    const gen = (r[idx.gen]||'').toString();
+function findIdx(headers, names){
+  const low=headers.map(h=>h.toLowerCase().trim());
+  for(const n of names){
+    const i=low.indexOf(n); if(i!=-1) return i;
+  }
+  // fuzzy
+  for(const n of names){
+    for(let i=0;i<low.length;i++){
+      if(low[i].includes(n)) return i;
+    }
+  }
+  return -1;
+}
 
-    // date
-    if(from || to){ const dt = new Date(tsRaw); if(isNaN(dt)) return false; if(from && dt < from) return false; if(to && dt > to) return false; }
-    // text
-    if(txt){ const hay = (tsRaw+' '+age+' '+mig+' '+gen).toLowerCase(); if(!hay.includes(txt)) return false; }
+function escapeHTML(s){
+  return (s||"").toString().replace(/[&<>"']/g,c=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+
+// FILTER
+function applyFilters(rows,idx){
+  return rows.filter(r=>{
+    const ts=r[idx.ts]||"";
+    const a=r[idx.age]||"";
+    const m=r[idx.mig]||"";
+    const g=r[idx.gen]||"";
+
+    if(txt){
+      const hay=(ts+" "+a+" "+m+" "+g).toLowerCase();
+      if(!hay.includes(txt)) return false;
+    }
     return true;
   });
 }
 
-function render(rows, idx){
-  // combos
-  const counts = {};
-  rows.forEach(r => {
-    const age = (r[idx.age]||'').toString();
-    const gen = (r[idx.gen]||'').toString();
-    const mig = (r[idx.mig]||'').toString();
-    const key = age+'|'+gen+'|'+mig;
-    counts[key] = (counts[key]||0)+1;
+// RENDER
+function render(rows,idx){
+  // COMBINATIONS
+  const count={};
+  rows.forEach(r=>{
+    const key=[r[idx.age],r[idx.gen],r[idx.mig]].join("|");
+    count[key]=(count[key]||0)+1;
   });
-  const combos = Object.keys(counts).map(k=>{ const [a,g,m]=k.split('|'); return {a,g,m,count:counts[k]}; });
-  combos.sort((x,y)=> y.count - x.count);
-  combTbody.innerHTML = '';
-  combos.forEach(c=>{ const tr=document.createElement('tr'); tr.innerHTML = `<td>${escape(c.a)}</td><td>${escape(c.g)}</td><td>${escape(c.m)}</td><td style="text-align:right">${c.count}</td>`; combTbody.appendChild(tr); });
-  summaryCountEl.innerText = rows.length + ' Einträge';
 
-  // raw table (show newest first)
-  rawTbody.innerHTML = '';
-  const show = rows.slice().reverse();
-  show.forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escape(r[idx.ts]||'')}</td><td>${escape(r[idx.age]||'')}</td><td>${escape(r[idx.mig]||'')}</td><td>${escape(r[idx.gen]||'')}</td>`;
+  const combos=Object.keys(count).map(k=>{
+    const [a,g,m]=k.split("|");
+    return {a,g,m,count:count[k]};
+  }).sort((x,y)=>y.count-x.count);
+
+  combTbody.innerHTML="";
+  combos.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>${escapeHTML(c.a)}</td>
+      <td>${escapeHTML(c.g)}</td>
+      <td>${escapeHTML(c.m)}</td>
+      <td style="text-align:right">${c.count}</td>`;
+    combTbody.appendChild(tr);
+  });
+  summaryCountEl.textContent = rows.length+" Einträge";
+
+  // RAW DATA (newest first)
+  rawTbody.innerHTML="";
+  rows.slice().reverse().forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>${escapeHTML(r[idx.ts])}</td>
+      <td>${escapeHTML(r[idx.age])}</td>
+      <td>${escapeHTML(r[idx.mig])}</td>
+      <td>${escapeHTML(r[idx.gen])}</td>`;
     rawTbody.appendChild(tr);
   });
 }
 
-function escape(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
+// FETCH + UPDATE
 async function fetchAndUpdate(){
   try{
-    refreshBtn.disabled = true; refreshBtn.innerText='Lade…';
-    const res = await fetch(CSV_URL, {cache:'no-store'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const txt = await res.text();
-    const rows = parseCSV(txt);
-    if(rows.length<1) throw new Error('Keine Daten');
-    headerRow = rows[0].map(h => (h||'').toString().trim());
-    allRows = rows.slice(1).filter(r => r.some(c => c && c.toString().trim() !== ''));
+    refreshBtn.disabled=true; refreshBtn.textContent="Lade…";
 
-    // detect columns
-    const idx = {
-      ts: findIdx(headerRow, ['timestamp','zeit','date','time']),
-      age: findIdx(headerRow, ['alter','age']),
-      mig: findIdx(headerRow, ['migrations','migration','migrationshintergrund']),
-      gen: findIdx(headerRow, ['geschlecht','gender','sex'])
+    const res=await fetch(CSV_URL,{cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+
+    const txtRaw=await res.text();
+    const csv=parseCSV(txtRaw);
+
+    headerRow=csv[0].map(h=>h.trim());
+    allRows=csv.slice(1).filter(r=>r.some(c=>String(c).trim()!==""));
+
+    const idx={
+      ts:findIdx(headerRow,["timestamp","zeit","date","time"]),
+      age:findIdx(headerRow,["alter","age"]),
+      mig:findIdx(headerRow,["migration","migrationshintergrund"]),
+      gen:findIdx(headerRow,["geschlecht","gender","sex"])
     };
-    if(idx.ts===-1||idx.age===-1||idx.mig===-1||idx.gen===-1){ alert('Spalten konnten nicht erkannt werden. Header: '+headerRow.join(',')); refreshBtn.disabled=false; refreshBtn.innerText='Neu laden'; return; }
 
-    const filtered = applyFilters(allRows, idx);
-    render(filtered, idx);
+    const filtered = applyFilters(allRows,idx);
+    render(filtered,idx);
 
-    refreshBtn.disabled=false; refreshBtn.innerText='Neu laden';
-  }catch(err){
-    alert('Fehler: '+err.message);
-    refreshBtn.disabled=false; refreshBtn.innerText='Neu laden';
-    console.error(err);
+  }catch(e){
+    alert("Fehler: "+e.message);
+  }finally{
+    refreshBtn.disabled=false;
+    refreshBtn.textContent="Neu laden";
   }
 }
 
-// download filtered CSV
-function downloadFiltered(){
-  const idx = {
-    ts: findIdx(headerRow, ['timestamp','zeit','date','time']),
-    age: findIdx(headerRow, ['alter','age']),
-    mig: findIdx(headerRow, ['migrations','migration','migrationshintergrund']),
-    gen: findIdx(headerRow, ['geschlecht','gender','sex'])
+// CSV EXPORT
+downloadBtn.addEventListener("click",()=>{
+  const idx={
+    ts:findIdx(headerRow,["timestamp","zeit","date","time"]),
+    age:findIdx(headerRow,["alter","age"]),
+    mig:findIdx(headerRow,["migration","migrationshintergrund"]),
+    gen:findIdx(headerRow,["geschlecht","gender","sex"])
   };
-  const filtered = applyFilters(allRows, idx);
-  const lines = [['Timestamp','Alter','Migrationshintergrund','Geschlecht']];
-  filtered.forEach(r=> lines.push([r[idx.ts]||'', r[idx.age]||'', r[idx.mig]||'', r[idx.gen]||'']));
-  const csv = lines.map(row=> row.map(cell=> {
-    const s = (cell||'').toString(); if(s.includes(',')||s.includes('"')||s.includes('\n')) return '"'+s.replace(/"/g,'""')+'"'; return s; }).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='filtered.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },3000);
-}
 
-// events
-refreshBtn.addEventListener('click', ()=> fetchAndUpdate());
-downloadBtn.addEventListener('click', downloadFiltered);
-[textFilter].forEach(el => el.addEventListener('change', ()=> { const idx = { ts:0, age:1, mig:2, gen:3 }; const filtered = applyFilters(allRows, idx); render(filtered, idx); }));
+  const filtered=applyFilters(allRows,idx);
+  const lines=[["Timestamp","Alter","Migration","Geschlecht"]];
 
-// initial load
+  filtered.forEach(r=>{
+    lines.push([r[idx.ts],r[idx.age],r[idx.mig],r[idx.gen]]);
+  });
+
+  const csv=lines.map(row =>
+    row.map(v=>{
+      const s=String(v||"");
+      return (s.includes(",")||s.includes('"')) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(",")
+  ).join("\n");
+
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="filtered.csv";
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+    a.remove();
+  },2000);
+});
+
+// TEXT FILTER EVENT
+textFilter.addEventListener("input",()=>{
+  txt = textFilter.value.toLowerCase().trim();
+
+  const idx={
+    ts:findIdx(headerRow,["timestamp","zeit","date","time"]),
+    age:findIdx(headerRow,["alter","age"]),
+    mig:findIdx(headerRow,["migration","migrationshintergrund"]),
+    gen:findIdx(headerRow,["geschlecht","gender","sex"])
+  };
+
+  const filtered=applyFilters(allRows,idx);
+  render(filtered,idx);
+});
+
+// INITIAL LOAD
 fetchAndUpdate();
 </script>
+
 </body>
 </html>
