@@ -1,113 +1,251 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<title>Statistik Zusammenfassung</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin — Büchsenstadel (Raw + Kombinationen)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-  table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-  th { background-color: #4CAF50; color: white; }
-  tr:nth-child(even) { background-color: #f2f2f2; }
+  :root{--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--accent:#2563eb}
+  body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:0;background:var(--bg);color:#111}
+  .wrap{max-width:1100px;margin:20px auto;padding:16px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  h1{font-size:18px;margin:0}
+  .controls{display:flex;gap:8px;align-items:center}
+  .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+  .grid{display:grid;grid-template-columns:1fr 420px;gap:12px}
+  .full{grid-column:1 / -1}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  input[type=date], select, input[type=text]{padding:8px;border-radius:8px;border:1px solid #e6edf8;font-size:14px}
+  button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent);border:1px solid #dfeeff}
+  .small{font-size:13px;color:var(--muted)}
+  .table-wrap{max-height:420px;overflow:auto;margin-top:10px;border-radius:8px;border:1px solid #eef5fb}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:8px 10px;border-bottom:1px solid #f1f6fb;text-align:left}
+  th{background:#fbfdff;position:sticky;top:0}
+  .comb-list td:nth-child(4){font-weight:700;text-align:right}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}.table-wrap{max-height:320px}}
 </style>
 </head>
 <body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Büchsenstadel — Admin</h1>
+      <div class="small">Rohdaten + Kombinationen · Live aus Google Sheets</div>
+    </div>
+    <div class="controls">
+      <button id="refreshBtn" title="Neu laden">Neu laden</button>
+      <button id="downloadBtn" class="ghost" title="Export aktuell gefiltert">Export CSV</button>
+    </div>
+  </header>
 
-<h1>Statistik Zusammenfassung</h1>
+  <div class="card full" style="margin-bottom:12px">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+      <div>
+        <label>Von</label>
+        <input type="date" id="dateFrom">
+      </div>
+      <div>
+        <label>Bis</label>
+        <input type="date" id="dateTo">
+      </div>
+      <div>
+        <label>Freitext Suche</label>
+        <input type="text" id="textFilter" placeholder="Suche Timestamp / Alter / Geschlecht…">
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <label class="small">Nur letzte 7 Tage</label>
+        <input type="checkbox" id="filter7">
+      </div>
+    </div>
+  </div>
 
-<h2>Rohdaten</h2>
-<table id="rawTable">
-  <thead>
-    <tr>
-      <th>Timestamp</th>
-      <th>Alter</th>
-      <th>Migrationshintergrund</th>
-      <th>Geschlecht</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+  <div class="grid">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="small">Kombinationen</div>
+          <strong style="font-size:16px">Alter × Geschlecht × Migrationshintergrund</strong>
+        </div>
+        <div class="small" id="summaryCount">— Einträge</div>
+      </div>
 
-<h2>Zusammenfassung</h2>
-<table id="summaryTable">
-  <thead>
-    <tr>
-      <th>Alter</th>
-      <th>Migrationshintergrund</th>
-      <th>Geschlecht</th>
-      <th>Anzahl</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+      <div class="table-wrap" style="margin-top:12px">
+        <table class="comb-list" id="combTable">
+          <thead><tr><th>Alter</th><th>Geschlecht</th><th>Migration</th><th style="width:90px">Anzahl</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="small">Rohdaten</div>
+      <strong style="font-size:16px">Einträge</strong>
+      <div class="table-wrap">
+        <table id="rawTable"><thead><tr><th>Timestamp</th><th>Alter</th><th>Migration</th><th>Geschlecht</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <footer style="margin-top:12px;text-align:right;color:var(--muted);font-size:13px">Datenquelle: Google Sheets</footer>
+</div>
 
 <script>
-const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv";
+// Local reference image path (from user's uploaded file)
+const LOCAL_UPLOAD = '/mnt/data/54753e4a-e075-4cd5-9ce3-21ed64c870c2.png';
 
-const ageGroups = ["10-14","14-18","18-27","27+"];
-const migrationStatus = ["Ja","Nein"];
-const genders = ["Männlich","Weiblich","Divers"];
+// CSV URL provided by you
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRaFKAQwcvl7c7dT1HI_aj7THVW9DKYLGXPtvn_WR7uYEAzxyUjH3DVmTFxZefhWF5FcXoHnK-XJim5/pub?gid=1664273841&single=true&output=csv';
 
-let rawData = [];
-
-// Parse CSV into objects
-function parseCSV(csv) {
-    const lines = csv.trim().split("\n");
-    const headers = lines.shift().split(",");
-    return lines.map(line => {
-        const values = line.split(",");
-        const obj = {};
-        headers.forEach((h,i) => obj[h.trim()] = (values[i]||"").trim());
-        return obj;
-    });
+// Robust CSV parser (handles quoted fields)
+function parseCSV(text){
+  const rows = [];
+  let cur=''; let row=[]; let inQ=false; for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    const next = text[i+1]||'';
+    if(inQ){ if(ch==='"' && next==='"'){ cur+='"'; i++; continue;} if(ch==='"'){ inQ=false; continue;} cur+=ch; continue; }
+    if(ch==='"'){ inQ=true; continue; }
+    if(ch===','){ row.push(cur); cur=''; continue; }
+    if(ch==='\n' || (ch==='\r' && next==='\n')){ row.push(cur); rows.push(row); row=[]; cur=''; if(ch==='\r') i++; continue; }
+    cur+=ch;
+  }
+  if(cur!==''||row.length) row.push(cur);
+  if(row.length) rows.push(row);
+  return rows;
 }
 
-// Render raw data
-function renderRaw(data) {
-    const rows = data.map(row => `<tr>
-        <td>${row.Timestamp}</td>
-        <td>${row.Alter}</td>
-        <td>${row.Migrationshintergrund}</td>
-        <td>${row.Geschlecht}</td>
-    </tr>`).join("");
-    document.querySelector("#rawTable tbody").innerHTML = rows;
+// Utilities
+function findIdx(headers, candidates){
+  const low = headers.map(h => (h||'').toString().toLowerCase().trim());
+  for(const c of candidates){ const i = low.indexOf(c); if(i!==-1) return i; }
+  for(const c of candidates){ for(let j=0;j<low.length;j++) if(low[j].includes(c)) return j; }
+  return -1;
 }
 
-// Render summary
-function renderSummary(data) {
-    const summary = {};
-    data.forEach(row => {
-        const age = ageGroups.includes(row.Alter) ? row.Alter : "Unbekannt";
-        const mig = migrationStatus.includes(row.Migrationshintergrund) ? row.Migrationshintergrund : "Unbekannt";
-        const gender = genders.includes(row.Geschlecht) ? row.Geschlecht : "Unbekannt";
-        const key = `${age}|${mig}|${gender}`;
-        summary[key] = (summary[key]||0)+1;
-    });
-    const rows = Object.entries(summary).map(([key,count])=>{
-        const [age,mig,gender] = key.split("|");
-        return `<tr>
-            <td>${age}</td>
-            <td>${mig}</td>
-            <td>${gender}</td>
-            <td>${count}</td>
-        </tr>`;
-    }).join("");
-    document.querySelector("#summaryTable tbody").innerHTML = rows;
+// DOM refs
+const combTbody = document.querySelector('#combTable tbody');
+const rawTbody = document.querySelector('#rawTable tbody');
+const dateFrom = document.getElementById('dateFrom');
+const dateTo = document.getElementById('dateTo');
+const textFilter = document.getElementById('textFilter');
+const filter7 = document.getElementById('filter7');
+const refreshBtn = document.getElementById('refreshBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const summaryCountEl = document.getElementById('summaryCount');
+
+let headerRow = [];
+let allRows = [];
+
+function toDateOnly(d){ const dt = new Date(d); if(isNaN(dt)) return null; return new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()); }
+
+function applyFilters(rows, idx){
+  // date filter
+  let from = dateFrom.value ? new Date(dateFrom.value) : null;
+  let to = dateTo.value ? new Date(dateTo.value) : null;
+  if(to) { to.setHours(23,59,59,999); }
+  // 7-day quick
+  if(filter7.checked){ const now = Date.now(); from = new Date(now - 7*24*60*60*1000); }
+  const txt = textFilter.value.trim().toLowerCase();
+
+  return rows.filter(r => {
+    const tsRaw = r[idx.ts]||'';
+    const age = (r[idx.age]||'').toString();
+    const mig = (r[idx.mig]||'').toString();
+    const gen = (r[idx.gen]||'').toString();
+
+    // date
+    if(from || to){ const dt = new Date(tsRaw); if(isNaN(dt)) return false; if(from && dt < from) return false; if(to && dt > to) return false; }
+    // text
+    if(txt){ const hay = (tsRaw+' '+age+' '+mig+' '+gen).toLowerCase(); if(!hay.includes(txt)) return false; }
+    return true;
+  });
 }
 
-// Fetch CSV and display
-fetch(csvUrl)
-.then(res => res.text())
-.then(text => {
-    rawData = parseCSV(text);
-    renderRaw(rawData);
-    renderSummary(rawData);
-})
-.catch(err => {
-    console.error("Fehler beim Laden der CSV:", err);
-    document.body.innerHTML += "<p style='color:red;'>Fehler beim Laden der Daten.</p>";
-});
+function render(rows, idx){
+  // combos
+  const counts = {};
+  rows.forEach(r => {
+    const age = (r[idx.age]||'').toString();
+    const gen = (r[idx.gen]||'').toString();
+    const mig = (r[idx.mig]||'').toString();
+    const key = age+'|'+gen+'|'+mig;
+    counts[key] = (counts[key]||0)+1;
+  });
+  const combos = Object.keys(counts).map(k=>{ const [a,g,m]=k.split('|'); return {a,g,m,count:counts[k]}; });
+  combos.sort((x,y)=> y.count - x.count);
+  combTbody.innerHTML = '';
+  combos.forEach(c=>{ const tr=document.createElement('tr'); tr.innerHTML = `<td>${escape(c.a)}</td><td>${escape(c.g)}</td><td>${escape(c.m)}</td><td style="text-align:right">${c.count}</td>`; combTbody.appendChild(tr); });
+  summaryCountEl.innerText = rows.length + ' Einträge';
+
+  // raw table (show newest first)
+  rawTbody.innerHTML = '';
+  const show = rows.slice().reverse();
+  show.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escape(r[idx.ts]||'')}</td><td>${escape(r[idx.age]||'')}</td><td>${escape(r[idx.mig]||'')}</td><td>${escape(r[idx.gen]||'')}</td>`;
+    rawTbody.appendChild(tr);
+  });
+}
+
+function escape(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function fetchAndUpdate(){
+  try{
+    refreshBtn.disabled = true; refreshBtn.innerText='Lade…';
+    const res = await fetch(CSV_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const txt = await res.text();
+    const rows = parseCSV(txt);
+    if(rows.length<1) throw new Error('Keine Daten');
+    headerRow = rows[0].map(h => (h||'').toString().trim());
+    allRows = rows.slice(1).filter(r => r.some(c => c && c.toString().trim() !== ''));
+
+    // detect columns
+    const idx = {
+      ts: findIdx(headerRow, ['timestamp','zeit','date','time']),
+      age: findIdx(headerRow, ['alter','age']),
+      mig: findIdx(headerRow, ['migrations','migration','migrationshintergrund']),
+      gen: findIdx(headerRow, ['geschlecht','gender','sex'])
+    };
+    if(idx.ts===-1||idx.age===-1||idx.mig===-1||idx.gen===-1){ alert('Spalten konnten nicht erkannt werden. Header: '+headerRow.join(',')); refreshBtn.disabled=false; refreshBtn.innerText='Neu laden'; return; }
+
+    const filtered = applyFilters(allRows, idx);
+    render(filtered, idx);
+
+    refreshBtn.disabled=false; refreshBtn.innerText='Neu laden';
+  }catch(err){
+    alert('Fehler: '+err.message);
+    refreshBtn.disabled=false; refreshBtn.innerText='Neu laden';
+    console.error(err);
+  }
+}
+
+// download filtered CSV
+function downloadFiltered(){
+  const idx = {
+    ts: findIdx(headerRow, ['timestamp','zeit','date','time']),
+    age: findIdx(headerRow, ['alter','age']),
+    mig: findIdx(headerRow, ['migrations','migration','migrationshintergrund']),
+    gen: findIdx(headerRow, ['geschlecht','gender','sex'])
+  };
+  const filtered = applyFilters(allRows, idx);
+  const lines = [['Timestamp','Alter','Migrationshintergrund','Geschlecht']];
+  filtered.forEach(r=> lines.push([r[idx.ts]||'', r[idx.age]||'', r[idx.mig]||'', r[idx.gen]||'']));
+  const csv = lines.map(row=> row.map(cell=> {
+    const s = (cell||'').toString(); if(s.includes(',')||s.includes('"')||s.includes('\n')) return '"'+s.replace(/"/g,'""')+'"'; return s; }).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='filtered.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },3000);
+}
+
+// events
+refreshBtn.addEventListener('click', ()=> fetchAndUpdate());
+downloadBtn.addEventListener('click', downloadFiltered);
+[dateFrom,dateTo,textFilter,filter7].forEach(el => el.addEventListener('change', ()=> { const idx = { ts:0, age:1, mig:2, gen:3 }; const filtered = applyFilters(allRows, idx); render(filtered, idx); }));
+
+// initial load
+fetchAndUpdate();
 </script>
-
 </body>
 </html>
