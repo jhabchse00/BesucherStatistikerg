@@ -55,18 +55,14 @@
         <label>Freitext Suche</label>
         <input type="text" id="textFilter" placeholder="Suche Timestamp / Alter / Geschlecht…">
       </div>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <label class="small">Nur letzte 7 Tage</label>
-        <input type="checkbox" id="filter7">
-      </div>
+      
     </div>
   </div>
 
   <div class="grid">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div class="small">Kombinationen</div>
+        <div>/*filter7 removed*/    <div class="small">Kombinationen</div>
           <strong style="font-size:16px">Alter × Geschlecht × Migrationshintergrund</strong>
         </div>
         <div class="small" id="summaryCount">— Einträge</div>
@@ -130,8 +126,8 @@ const rawTbody = document.querySelector('#rawTable tbody');
 const dateFrom = document.getElementById('dateFrom');
 const dateTo = document.getElementById('dateTo');
 const textFilter = document.getElementById('textFilter');
-const filter7 = document.getElementById('filter7');
-const refreshBtn = document.getElementById('refreshBtn');
+// rem/*filter7 removed*/lter7
+const refreshBtn = doc/*filter7 removed*/etElementById('refreshBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const summaryCountEl = document.getElementById('summaryCount');
 
@@ -146,7 +142,7 @@ function applyFilters(rows, idx){
   let to = dateTo.value ? new Date(dateTo.value) : null;
   if(to) { to.setHours(23,59,59,999); }
   // 7-day quick
-  if(filter7.checked){ const now = Date.now(); from = new Date(now - 7*24*60*60*1000); }
+  if(/*filter7 removed*/.checked){ const now = Date.now(); from = new Date(now - 7*24*60*60*1000); }
   const txt = textFilter.value.trim().toLowerCase();
 
   return rows.filter(r => {
@@ -242,7 +238,7 @@ function downloadFiltered(){
 // events
 refreshBtn.addEventListener('click', ()=> fetchAndUpdate());
 downloadBtn.addEventListener('click', downloadFiltered);
-[dateFrom,dateTo,textFilter,filter7].forEach(el => el.addEventListener('change', ()=> { const idx = { ts:0, age:1, mig:2, gen:3 }; const filtered = applyFilters(allRows, idx); render(filtered, idx); }));
+[dateFrom,dateTo,textFilter,/*filter7 removed*/].forEach(el => el.addEventListener('change', ()=> { const idx = { ts:0, age:1, mig:2, gen:3 }; const filtered = applyFilters(allRows, idx); render(filtered, idx); }));
 
 // initial load
 fetchAndUpdate();
