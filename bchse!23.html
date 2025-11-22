@@ -130,10 +130,6 @@ function toDateOnly(d){ const dt = new Date(d); if(isNaN(dt)) return null; retur
 
 function applyFilters(rows, idx){
   // date filter
-  
-  if(filter7.checked){ const now = Date.now(); from = new Date(now - 7*24*60*60*1000); }
-  const txt = textFilter.value.trim().toLowerCase();
-
   return rows.filter(r => {
     const tsRaw = r[idx.ts]||'';
     const age = (r[idx.age]||'').toString();
